@@ -1,4 +1,4 @@
-<img align="left" width="75" height="75" src="winuc.png>
+<img align="left" width="75" height="75" src="winuc.png">
 
 # Windows Ultimate Configurator
 
