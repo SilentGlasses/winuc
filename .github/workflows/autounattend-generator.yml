@@ -21,28 +21,47 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Check for bypass option changes
         id: check-changes
         run: |
-          # Get the diff for winuc.ps1
+          # Get a robust diff for winuc.ps1 that handles PRs, pushes, initial commits, and shallow clones.
+          set -euo pipefail
+
+          get_diff_from_range() {
+            local base_ref="$1"
+            git fetch origin "$base_ref" || true
+            if git rev-parse --verify origin/"$base_ref" >/dev/null 2>&1; then
+              git diff origin/"$base_ref"...HEAD -- winuc.ps1 || true
+            else
+              return 1
+            fi
+          }
+
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # For PRs, compare against the base branch
-            git fetch origin ${{ github.base_ref }}
-            DIFF=$(git diff origin/${{ github.base_ref }} HEAD -- winuc.ps1)
+            BASE_REF="${{ github.base_ref }}"
+            DIFF=$(get_diff_from_range "$BASE_REF") || DIFF=""
           else
-            # For pushes, compare with the previous commit
-            DIFF=$(git diff HEAD^ HEAD -- winuc.ps1)
+            # For pushes, prefer comparing to the remote branch when possible
+            REF_NAME="${GITHUB_REF#refs/heads/}"
+            DIFF=$(get_diff_from_range "$REF_NAME") || {
+              # Fallback to previous commit if remote ref unavailable (initial commit or unusual refs)
+              if git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+                DIFF=$(git diff HEAD^ HEAD -- winuc.ps1) || true
+              else
+                DIFF=""
+              fi
+            }
           fi
 
-          # Check if bypass section was modified
+          # Check if bypass section or bypass-related tokens were modified
           if echo "$DIFF" | grep -E "^\+.*bypass.*=|^\-.*bypass.*=|BypassTPMCheck|BypassSecureBootCheck|BypassRAMCheck|BypassCPUCheck|BypassStorageCheck|BypassNRO|BypassMSAOOBE" > /dev/null; then
             echo "bypass_changed=true" >> $GITHUB_OUTPUT
             echo "Bypass options have been modified"
           else
             echo "bypass_changed=false" >> $GITHUB_OUTPUT
-            echo "ℹ️ No changes detected in bypass options"
+            echo "No changes detected in bypass options"
           fi
 
   generate-autounattend:
@@ -52,6 +71,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
 
       - name: Generate default autounattend.xml
         shell: pwsh
@@ -61,133 +83,88 @@ jobs:
           # Source the script to load functions and options
           . .\winuc.ps1 -NoGUI 2>$null
 
-          # Create a hashtable with only bypass options selected
-          $selectedOptions = @{
-            bypass = @(
-              @{
-                Name = 'Bypass TPM 2.0 Requirement'
-                RegistryPath = 'HKLM:\SYSTEM\Setup\LabConfig'
-                RegistryName = 'BypassTPMCheck'
-                RegistryValue = 1
-              },
-              @{
-                Name = 'Bypass Secure Boot Requirement'
-                RegistryPath = 'HKLM:\SYSTEM\Setup\LabConfig'
-                RegistryName = 'BypassSecureBootCheck'
-                RegistryValue = 1
-              },
-              @{
-                Name = 'Bypass RAM Requirement'
-                RegistryPath = 'HKLM:\SYSTEM\Setup\LabConfig'
-                RegistryName = 'BypassRAMCheck'
-                RegistryValue = 1
-              },
-              @{
-                Name = 'Bypass CPU Requirement'
-                RegistryPath = 'HKLM:\SYSTEM\Setup\LabConfig'
-                RegistryName = 'BypassCPUCheck'
-                RegistryValue = 1
-              },
-              @{
-                Name = 'Bypass Storage Requirement'
-                RegistryPath = 'HKLM:\SYSTEM\Setup\LabConfig'
-                RegistryName = 'BypassStorageCheck'
-                RegistryValue = 1
-              },
-              @{
-                Name = 'Skip OOBE Network Connection'
-                RegistryPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE'
-                RegistryName = 'BypassNRO'
-                RegistryValue = 1
-              },
-              @{
-                Name = 'Install Without Microsoft Account'
-                RegistryPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE'
-                RegistryName = 'BypassMSAOOBE'
-                RegistryValue = 1
-              }
-            )
-          }
-
-          # Generate the XML content directly
+          # Generate the XML content directly (trim leading indentation for a clean file)
           $xmlContent = @'
           <?xml version="1.0" encoding="utf-8"?>
           <unattend xmlns="urn:schemas-microsoft-com:unattend">
-              <settings pass="windowsPE">
-                  <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
-                      <RunSynchronous>
-                          <RunSynchronousCommand wcm:action="add">
-                              <Order>1</Order>
-                              <Description>Bypass TPM 2.0 Requirement</Description>
-                              <Path>reg add HKLM\SYSTEM\Setup\LabConfig /v BypassTPMCheck /t REG_DWORD /d 1 /f</Path>
-                          </RunSynchronousCommand>
-                          <RunSynchronousCommand wcm:action="add">
-                              <Order>2</Order>
-                              <Description>Bypass Secure Boot Requirement</Description>
-                              <Path>reg add HKLM\SYSTEM\Setup\LabConfig /v BypassSecureBootCheck /t REG_DWORD /d 1 /f</Path>
-                          </RunSynchronousCommand>
-                          <RunSynchronousCommand wcm:action="add">
-                              <Order>3</Order>
-                              <Description>Bypass RAM Requirement</Description>
-                              <Path>reg add HKLM\SYSTEM\Setup\LabConfig /v BypassRAMCheck /t REG_DWORD /d 1 /f</Path>
-                          </RunSynchronousCommand>
-                          <RunSynchronousCommand wcm:action="add">
-                              <Order>4</Order>
-                              <Description>Bypass CPU Requirement</Description>
-                              <Path>reg add HKLM\SYSTEM\Setup\LabConfig /v BypassCPUCheck /t REG_DWORD /d 1 /f</Path>
-                          </RunSynchronousCommand>
-                          <RunSynchronousCommand wcm:action="add">
-                              <Order>5</Order>
-                              <Description>Bypass Storage Requirement</Description>
-                              <Path>reg add HKLM\SYSTEM\Setup\LabConfig /v BypassStorageCheck /t REG_DWORD /d 1 /f</Path>
-                          </RunSynchronousCommand>
-                          <RunSynchronousCommand wcm:action="add">
-                              <Order>6</Order>
-                              <Description>Skip OOBE Network Connection</Description>
-                              <Path>reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE" /v BypassNRO /t REG_DWORD /d 1 /f</Path>
-                          </RunSynchronousCommand>
-                          <RunSynchronousCommand wcm:action="add">
-                              <Order>7</Order>
-                              <Description>Install Without Microsoft Account</Description>
-                              <Path>reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE" /v BypassMSAOOBE /t REG_DWORD /d 1 /f</Path>
-                          </RunSynchronousCommand>
-                      </RunSynchronous>
-                  </component>
-              </settings>
-              <settings pass="oobeSystem">
-                  <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
-                      <OOBE>
-                          <HideEULAPage>true</HideEULAPage>
-                          <HideLocalAccountScreen>false</HideLocalAccountScreen>
-                          <HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
-                          <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
-                          <HideWirelessSetupInOOBE>false</HideWirelessSetupInOOBE>
-                          <NetworkLocation>Home</NetworkLocation>
-                          <ProtectYourPC>1</ProtectYourPC>
-                          <SkipUserOOBE>false</SkipUserOOBE>
-                          <SkipMachineOOBE>false</SkipMachineOOBE>
-                      </OOBE>
-                      <UserAccounts>
-                          <LocalAccounts>
-                              <LocalAccount wcm:action="add">
-                                  <Password>
-                                      <Value></Value>
-                                      <PlainText>true</PlainText>
-                                  </Password>
-                                  <Description>Local Administrator Account</Description>
-                                  <DisplayName>Administrator</DisplayName>
-                                  <Group>Administrators</Group>
-                                  <Name>Admin</Name>
-                              </LocalAccount>
-                          </LocalAccounts>
-                      </UserAccounts>
-                  </component>
-              </settings>
+            <settings pass="windowsPE">
+              <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+                <RunSynchronous>
+                  <RunSynchronousCommand wcm:action="add">
+                    <Order>1</Order>
+                    <Description>Bypass TPM 2.0 Requirement</Description>
+                    <Path>reg add HKLM\SYSTEM\Setup\LabConfig /v BypassTPMCheck /t REG_DWORD /d 1 /f</Path>
+                  </RunSynchronousCommand>
+                  <RunSynchronousCommand wcm:action="add">
+                    <Order>2</Order>
+                    <Description>Bypass Secure Boot Requirement</Description>
+                    <Path>reg add HKLM\SYSTEM\Setup\LabConfig /v BypassSecureBootCheck /t REG_DWORD /d 1 /f</Path>
+                  </RunSynchronousCommand>
+                  <RunSynchronousCommand wcm:action="add">
+                    <Order>3</Order>
+                    <Description>Bypass RAM Requirement</Description>
+                    <Path>reg add HKLM\SYSTEM\Setup\LabConfig /v BypassRAMCheck /t REG_DWORD /d 1 /f</Path>
+                  </RunSynchronousCommand>
+                  <RunSynchronousCommand wcm:action="add">
+                    <Order>4</Order>
+                    <Description>Bypass CPU Requirement</Description>
+                    <Path>reg add HKLM\SYSTEM\Setup\LabConfig /v BypassCPUCheck /t REG_DWORD /d 1 /f</Path>
+                  </RunSynchronousCommand>
+                  <RunSynchronousCommand wcm:action="add">
+                    <Order>5</Order>
+                    <Description>Bypass Storage Requirement</Description>
+                    <Path>reg add HKLM\SYSTEM\Setup\LabConfig /v BypassStorageCheck /t REG_DWORD /d 1 /f</Path>
+                  </RunSynchronousCommand>
+                  <RunSynchronousCommand wcm:action="add">
+                    <Order>6</Order>
+                    <Description>Skip OOBE Network Connection</Description>
+                    <Path>reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE" /v BypassNRO /t REG_DWORD /d 1 /f</Path>
+                  </RunSynchronousCommand>
+                  <RunSynchronousCommand wcm:action="add">
+                    <Order>7</Order>
+                    <Description>Install Without Microsoft Account</Description>
+                    <Path>reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE" /v BypassMSAOOBE /t REG_DWORD /d 1 /f</Path>
+                  </RunSynchronousCommand>
+                </RunSynchronous>
+              </component>
+            </settings>
+            <settings pass="oobeSystem">
+              <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+                <OOBE>
+                  <HideEULAPage>true</HideEULAPage>
+                  <HideLocalAccountScreen>false</HideLocalAccountScreen>
+                  <HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
+                  <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
+                  <HideWirelessSetupInOOBE>false</HideWirelessSetupInOOBE>
+                  <NetworkLocation>Home</NetworkLocation>
+                  <ProtectYourPC>1</ProtectYourPC>
+                  <SkipUserOOBE>false</SkipUserOOBE>
+                  <SkipMachineOOBE>false</SkipMachineOOBE>
+                </OOBE>
+                <UserAccounts>
+                  <LocalAccounts>
+                    <LocalAccount wcm:action="add">
+                      <Password>
+                        <Value></Value>
+                        <PlainText>true</PlainText>
+                      </Password>
+                      <Description>Local Administrator Account</Description>
+                      <DisplayName>Administrator</DisplayName>
+                      <Group>Administrators</Group>
+                      <Name>Admin</Name>
+                    </LocalAccount>
+                  </LocalAccounts>
+                </UserAccounts>
+              </component>
+            </settings>
           </unattend>
           '@
 
+          # Trim leading indentation left by YAML block indentation so the XML file is clean
+          $xmlContent = ($xmlContent -split "`n") | ForEach-Object { $_.TrimStart() } | Out-String
+
           # Save to file
-          $xmlContent | Out-File -FilePath "autounattend.xml" -Encoding utf8 -NoNewline
+          $xmlContent | Out-File -FilePath "autounattend.xml" -Encoding utf8
 
           Write-Host "autounattend.xml generated successfully" -ForegroundColor Green
 
@@ -195,11 +172,11 @@ jobs:
         id: check-diff
         run: |
           git diff --exit-code autounattend.xml
-          if ($LASTEXITCODE -eq 1) {
-            echo "file_changed=true" >> $env:GITHUB_OUTPUT
+          if ($LASTEXITCODE -ne 0) {
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "file_changed=true"
             Write-Host "autounattend.xml has changes" -ForegroundColor Green
           } else {
-            echo "file_changed=false" >> $env:GITHUB_OUTPUT
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "file_changed=false"
             Write-Host "ℹ️ autounattend.xml unchanged" -ForegroundColor Yellow
           }
 
