@@ -3,21 +3,19 @@
 
 <#
 .SYNOPSIS
-    Windows 11 Ultimate Configurator - Fixed Version
-    Professional PowerShell GUI for Windows 11 system enhancement and requirements bypass.
+    Windows 11 Ultimate Configurator
+    PowerShell GUI for Windows 11 system enhancement and requirements bypass.
 
 .DESCRIPTION
-    This tool provides a comprehensive GUI interface for configuring Windows 11 settings,
+    This tool provides a GUI interface for configuring Windows 11 settings,
     bypassing hardware requirements, and generating unattended installation files.
-    Features 58 total configuration options across 9 categories.
 
 .NOTES
-    Author: Windows 11 Ultimate Configurator
-    Version: 1.1 (Fixed)
+    Author: SilentGlasses
+    Version: 1.1.0
     Requires: PowerShell 5.1+, Administrator privileges
 #>
 
-# Assembly loading with proper error handling
 try {
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing
@@ -29,12 +27,14 @@ try {
 }
 
 # Initialize global variables with proper null handling
+#===============================================================================
 $Global:isDarkMode = $false
 $Global:colors = @{}
 $Global:bypassCheckboxes = @()
 $Global:enhancementCheckboxes = @()
 
 # Initialize default colors immediately
+#===============================================================================
 $Global:colors = @{
     Background = [System.Drawing.Color]::FromArgb(243, 243, 243)
     Surface = [System.Drawing.Color]::White
@@ -57,21 +57,21 @@ function Get-SafeColor {
     param(
         [Parameter(Mandatory = $false)]
         [string]$ColorName,
-        
+
         [System.Drawing.Color]$DefaultColor = [System.Drawing.Color]::Black
     )
-    
+
     # Handle null, empty, or whitespace-only color names
     if ([string]::IsNullOrWhiteSpace($ColorName)) {
         Write-Verbose "Empty or null ColorName provided, using default color"
         return $DefaultColor
     }
-    
+
     # Check if global colors hashtable exists and contains the requested color
     if ($null -ne $Global:colors -and $Global:colors.ContainsKey($ColorName)) {
         return $Global:colors[$ColorName]
     }
-    
+
     Write-Verbose "Color '$ColorName' not found in global colors, using default color"
     return $DefaultColor
 }
@@ -83,7 +83,7 @@ function Get-WindowsTheme {
     #>
     [OutputType([bool])]
     param()
-    
+
     try {
         $regPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
         if (Test-Path -Path $regPath -ErrorAction SilentlyContinue) {
@@ -106,10 +106,10 @@ function Set-ColorScheme {
     #>
     [CmdletBinding()]
     param()
-    
+
     try {
         $Global:isDarkMode = Get-WindowsTheme
-        
+
         if ($Global:isDarkMode) {
             $Global:colors.Background = [System.Drawing.Color]::FromArgb(32, 32, 32)
             $Global:colors.Surface = [System.Drawing.Color]::FromArgb(45, 45, 45)
@@ -128,8 +128,12 @@ function Set-ColorScheme {
     }
 }
 
-# Enhancement options configuration with proper PowerShell syntax
+# Enhancement options
+#===============================================================================
 $Global:enhancementOptions = @{
+    #===========================================================================
+    #              BYPASS OPTIONS
+    #===========================================================================
     bypass = @(
         @{
             Name = 'Bypass TPM 2.0 Requirement'
@@ -188,6 +192,9 @@ $Global:enhancementOptions = @{
             RegistryValue = 1
         }
     )
+    #===========================================================================
+    #              PRIVACY OPTIONS
+    #===========================================================================
     privacy = @(
         @{
             Name = 'Disable Telemetry'
@@ -270,6 +277,9 @@ $Global:enhancementOptions = @{
             RegistryValue = 0
         }
     )
+    #===========================================================================
+    #              SECURITY OPTIONS
+    #===========================================================================
     security = @(
         @{
             Name = 'Enable Windows Defender'
@@ -336,6 +346,9 @@ $Global:enhancementOptions = @{
             RegistryValue = 1
         }
     )
+    #===========================================================================
+    #              PERFORMANCE OPTIONS
+    #===========================================================================
     performance = @(
         @{
             Name = 'Disable Visual Effects'
@@ -386,6 +399,9 @@ $Global:enhancementOptions = @{
             RegistryValue = '0'
         }
     )
+    #===========================================================================
+    #              APPEARANCE OPTIONS
+    #===========================================================================
     appearance = @(
         @{
             Name = 'Enable Classic Context Menu'
@@ -428,6 +444,9 @@ $Global:enhancementOptions = @{
             RegistryValue = 0
         }
     )
+    #===========================================================================
+    #              GAMING OPTIONS
+    #===========================================================================
     gaming = @(
         @{
             Name = 'Disable Game DVR'
@@ -478,6 +497,9 @@ $Global:enhancementOptions = @{
             RegistryValue = 1
         }
     )
+    #===========================================================================
+    #              NETWORKING OPTIONS
+    #===========================================================================
     network = @(
         @{
             Name = 'Disable Windows Update P2P'
@@ -528,6 +550,9 @@ $Global:enhancementOptions = @{
             RegistryValue = 0
         }
     )
+    #===========================================================================
+    #              HOUSECLEANING OPTIONS
+    #===========================================================================
     cleanup = @(
         @{
             Name = 'Remove Xbox Apps Auto-Install'
@@ -586,6 +611,9 @@ $Global:enhancementOptions = @{
             RegistryValue = 1
         }
     )
+    #===========================================================================
+    #              DEVELOPER OPTIONS
+    #===========================================================================
     developer = @(
         @{
             Name = 'Enable Developer Mode'
@@ -656,7 +684,7 @@ function New-ToolTip {
         [Parameter(Mandatory)]
         [string]$Text
     )
-    
+
     try {
         $tooltip = New-Object System.Windows.Forms.ToolTip
         $tooltip.InitialDelay = 500
@@ -679,20 +707,20 @@ function Get-TextWidth {
     param(
         [Parameter(Mandatory)]
         [string]$Text,
-        
+
         [System.Drawing.Font]$Font = (New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Regular))
     )
-    
+
     try {
         # Ensure we have valid input
         if ([string]::IsNullOrEmpty($Text)) {
             return 100
         }
-        
+
         $graphics = [System.Drawing.Graphics]::FromImage((New-Object System.Drawing.Bitmap(1, 1)))
         $size = $graphics.MeasureString($Text, $Font)
         $graphics.Dispose()
-        
+
         # Ensure we get a numeric value and add padding
         $width = [int][Math]::Ceiling([double]$size.Width)
         return ($width + 20)  # Add 20px padding with explicit parentheses
@@ -711,16 +739,13 @@ function New-ModernButton {
     param(
         [Parameter(Mandatory)]
         [string]$Text,
-        
         [Parameter(Mandatory)]
         [System.Drawing.Point]$Location,
-        
         [Parameter(Mandatory)]
         [System.Drawing.Size]$Size,
-        
         [string]$BackColor = 'Primary'
     )
-    
+
     try {
         $button = New-Object System.Windows.Forms.Button
         $button.Text = $Text
@@ -732,20 +757,20 @@ function New-ModernButton {
         $button.Font = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Regular)
         $button.FlatAppearance.BorderSize = 0
         $button.Cursor = [System.Windows.Forms.Cursors]::Hand
-        
+
         # Store the original color for hover effects
         $originalBackColor = $button.BackColor
         $hoverColor = Get-SafeColor -ColorName 'PrimaryHover' -DefaultColor ([System.Drawing.Color]::FromArgb(16, 110, 190))
-        
-        # Safe hover effects using proper event handler syntax
+
+        # Safe hover effects
         $button.Add_MouseEnter({
             $this.BackColor = $hoverColor
         }.GetNewClosure())
-        
+
         $button.Add_MouseLeave({
             $this.BackColor = $originalBackColor
         }.GetNewClosure())
-        
+
         return $button
     } catch {
         Write-Error "Failed to create button '$Text': $_"
@@ -762,13 +787,11 @@ function New-ModernCheckBox {
     param(
         [Parameter(Mandatory)]
         [string]$Text,
-        
         [Parameter(Mandatory)]
         [System.Drawing.Point]$Location,
-        
         [string]$Description = ''
     )
-    
+
     try {
         $checkbox = New-Object System.Windows.Forms.CheckBox
         $checkbox.Text = $Text
@@ -779,7 +802,7 @@ function New-ModernCheckBox {
         $checkbox.Font = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Regular)
         $checkbox.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
         $checkbox.Cursor = [System.Windows.Forms.Cursors]::Hand
-        
+
         # Add tooltip if description provided
         if (-not [string]::IsNullOrEmpty($Description)) {
             $tooltip = New-ToolTip -Text $Description
@@ -787,7 +810,7 @@ function New-ModernCheckBox {
                 $tooltip.SetToolTip($checkbox, $Description)
             }
         }
-        
+
         return $checkbox
     } catch {
         Write-Error "Failed to create checkbox '$Text': $_"
@@ -804,14 +827,12 @@ function New-ScrollablePanel {
     param(
         [Parameter(Mandatory)]
         [string]$Title,
-        
         [Parameter(Mandatory)]
         [System.Drawing.Point]$Location,
-        
         [Parameter(Mandatory)]
         [System.Drawing.Size]$Size
     )
-    
+
     try {
         # Main panel with very subtle border
         $mainPanel = New-Object System.Windows.Forms.Panel
@@ -819,11 +840,10 @@ function New-ScrollablePanel {
         $mainPanel.Size = $Size
         $mainPanel.BackColor = Get-SafeColor -ColorName 'Surface' -DefaultColor ([System.Drawing.Color]::White)
         $mainPanel.BorderStyle = [System.Windows.Forms.BorderStyle]::None
-        
-        # Add custom subtle border using PowerShell 5.1 compatible method
+
         $mainPanel.Add_Paint({
             param($sender, $e)
-            $borderColor = [System.Drawing.Color]::FromArgb(230, 230, 230)  # Very subtle border
+            $borderColor = [System.Drawing.Color]::FromArgb(230, 230, 230)
             $borderPen = New-Object System.Drawing.Pen($borderColor, 1)
             $width = [int]$sender.Width
             $height = [int]$sender.Height
@@ -831,7 +851,7 @@ function New-ScrollablePanel {
             $e.Graphics.DrawRectangle($borderPen, $rect)
             $borderPen.Dispose()
         })
-        
+
         # Title label
         $titleLabel = New-Object System.Windows.Forms.Label
         $titleLabel.Text = $Title
@@ -842,17 +862,17 @@ function New-ScrollablePanel {
         $titleLabel.ForeColor = Get-SafeColor -ColorName 'Text' -DefaultColor ([System.Drawing.Color]::Black)
         $titleLabel.Font = New-Object System.Drawing.Font('Segoe UI', 10, [System.Drawing.FontStyle]::Bold)
         $mainPanel.Controls.Add($titleLabel)
-        
-        # Content panel - no scrolling needed since panels size to fit all content
+
+        # Content panel - no scrolling needed since panels size to fit content
         $scrollPanel = New-Object System.Windows.Forms.Panel
-        $scrollPanel.Location = New-Object System.Drawing.Point(10, 52)  # Better positioning for description
+        $scrollPanel.Location = New-Object System.Drawing.Point(10, 52)
         $scrollWidth = [int]$Size.Width
         $scrollHeight = [int]$Size.Height
-        $scrollPanel.Size = New-Object System.Drawing.Size(($scrollWidth - 25), ($scrollHeight - 62))  # Adjust height accordingly
-        $scrollPanel.AutoScroll = $false  # No scrolling needed since panels size to content
+        $scrollPanel.Size = New-Object System.Drawing.Size(($scrollWidth - 25), ($scrollHeight - 62))
+        $scrollPanel.AutoScroll = $false
         $scrollPanel.BackColor = [System.Drawing.Color]::Transparent
         $mainPanel.Controls.Add($scrollPanel)
-        
+
         return @{
             MainPanel = $mainPanel
             ScrollPanel = $scrollPanel
@@ -873,20 +893,20 @@ function Apply-Enhancements {
         [Parameter(Mandatory)]
         [hashtable]$SelectedOptions
     )
-    
+
     $results = @()
-    
+
     if ($null -eq $SelectedOptions -or $SelectedOptions.Count -eq 0) {
         return @('No options selected')
     }
-    
+
     foreach ($category in $SelectedOptions.Keys) {
         $categoryOptions = $SelectedOptions[$category]
         if ($null -eq $categoryOptions) { continue }
-        
+
         foreach ($option in $categoryOptions) {
             if ($null -eq $option) { continue }
-            
+
             try {
                 # Handle special cases that require PowerShell commands
                 if ($option.Name -eq 'Disable Hibernation') {
@@ -898,25 +918,25 @@ function Apply-Enhancements {
                     }
                     continue
                 }
-                
+
                 # Validate registry settings
                 if ([string]::IsNullOrEmpty($option.RegistryPath)) {
                     $results += "Failed: $($option.Name) - Invalid registry path"
                     continue
                 }
-                
-                # Registry name can be empty only if it's explicitly '(Default)'
+
+                # Registry name can be empty ONLY if it's explicitly '(Default)'
                 if ([string]::IsNullOrWhiteSpace($option.RegistryName) -and $option.RegistryName -ne '(Default)') {
                     $results += "Failed: $($option.Name) - Invalid registry name"
                     continue
                 }
-                
+
                 # Validate registry path format
                 if ($option.RegistryPath -notmatch '^HK(LM|CU|CC|U|CR):\\') {
                     $results += "Failed: $($option.Name) - Invalid registry path format"
                     continue
                 }
-                
+
                 # Create registry path and all parent paths if they don't exist
                 if (-not (Test-Path -Path $option.RegistryPath -ErrorAction SilentlyContinue)) {
                     try {
@@ -927,11 +947,11 @@ function Apply-Enhancements {
                         # If direct creation fails, try creating parent paths step by step
                         try {
                             $pathParts = $option.RegistryPath -split '\\'
-                            $currentPath = $pathParts[0]  # Start with root (HKLM:, HKCU:, etc.)
-                            
+                            $currentPath = $pathParts[0]
+
                             # Special handling for common paths that need to be created
                             Write-Verbose "Creating registry path step by step: $($option.RegistryPath)"
-                            
+
                             for ($i = 1; $i -lt $pathParts.Length; $i++) {
                                 $currentPath += '\' + $pathParts[$i]
                                 if (-not (Test-Path -Path $currentPath -ErrorAction SilentlyContinue)) {
@@ -946,10 +966,10 @@ function Apply-Enhancements {
                         }
                     }
                 }
-                
+
                 # Apply registry setting based on value type
                 $isDefaultValue = ($option.RegistryName -eq '(Default)')
-                
+
                 if ($isDefaultValue) {
                     # Handle default registry value (no -Name parameter)
                     if ($option.RegistryValue -is [string]) {
@@ -966,7 +986,7 @@ function Apply-Enhancements {
                         Set-ItemProperty -Path $option.RegistryPath -Name $option.RegistryName -Value $option.RegistryValue -Type DWord -ErrorAction Stop
                     }
                 }
-                
+
                 # Verify the setting was applied
                 try {
                     if ($isDefaultValue) {
@@ -981,7 +1001,7 @@ function Apply-Enhancements {
                 } catch {
                     $results += "Applied: $($option.Name) - Warning: Could not verify setting"
                 }
-                
+
             } catch {
                 # Provide more specific error messages
                 $errorMessage = $_.Exception.Message
@@ -998,7 +1018,7 @@ function Apply-Enhancements {
             }
         }
     }
-    
+
     return $results
 }
 
@@ -1012,7 +1032,7 @@ function Generate-UnattendedFile {
         [Parameter(Mandatory)]
         [hashtable]$SelectedOptions
     )
-    
+
     try {
         # Create the unattend.xml content
         $xmlContent = @'
@@ -1025,11 +1045,11 @@ function Generate-UnattendedFile {
         # Add bypass options if selected
         if ($SelectedOptions.ContainsKey('bypass') -and $null -ne $SelectedOptions.bypass) {
             $xmlContent += "`n            <RunSynchronous>"
-            
+
             $commandOrder = 1
             foreach ($option in $SelectedOptions.bypass) {
                 if ($null -eq $option) { continue }
-                
+
                 switch ($option.RegistryName) {
                     'BypassTPMCheck' {
                         $xmlContent += "`n                <RunSynchronousCommand wcm:action=`"add`">"
@@ -1095,7 +1115,7 @@ function Generate-UnattendedFile {
         $xmlContent += @'
         </component>
     </settings>
-    
+
     <settings pass="oobeSystem">
         <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
             <FirstLogonCommands>
@@ -1104,19 +1124,19 @@ function Generate-UnattendedFile {
         # Add post-installation commands for other categories
         $commandOrder = 1
         foreach ($category in $SelectedOptions.Keys) {
-            if ($category -eq 'bypass') { continue } # Already handled above
-            
+            if ($category -eq 'bypass') { continue }
+
             $categoryOptions = $SelectedOptions[$category]
             if ($null -eq $categoryOptions) { continue }
-            
+
             foreach ($option in $categoryOptions) {
-                if ($null -eq $option -or [string]::IsNullOrEmpty($option.RegistryPath) -or [string]::IsNullOrEmpty($option.RegistryName)) { 
-                    continue 
+                if ($null -eq $option -or [string]::IsNullOrEmpty($option.RegistryPath) -or [string]::IsNullOrEmpty($option.RegistryName)) {
+                    continue
                 }
-                
+
                 # Convert PowerShell registry path to reg.exe format
                 $regPath = $option.RegistryPath -replace 'HKLM:', 'HKLM' -replace 'HKCU:', 'HKCU'
-                
+
                 # Determine registry value type and format command
                 if ($option.RegistryValue -is [string]) {
                     if ($option.RegistryValue -eq '') {
@@ -1127,12 +1147,12 @@ function Generate-UnattendedFile {
                 } else {
                     $regCommand = "reg add `"$regPath`" /v `"$($option.RegistryName)`" /t REG_DWORD /d $($option.RegistryValue) /f"
                 }
-                
+
                 # Handle special cases
                 if ($option.Name -eq 'Disable Hibernation') {
                     $regCommand = 'powercfg.exe /hibernate off'
                 }
-                
+
                 $xmlContent += "`n                <SynchronousCommand wcm:action=`"add`">"
                 $xmlContent += "`n                    <Order>$commandOrder</Order>"
                 $xmlContent += "`n                    <Description>$($option.Name)</Description>"
@@ -1177,10 +1197,10 @@ function Generate-UnattendedFile {
         # Generate standard autounattend filename
         $fileName = "autounattend.xml"
         $filePath = Join-Path -Path $PWD -ChildPath $fileName
-        
+
         # Save file with UTF-8 encoding
         [System.IO.File]::WriteAllText($filePath, $xmlContent, [System.Text.Encoding]::UTF8)
-        
+
         return @{
             Success = $true
             FilePath = $filePath
@@ -1204,36 +1224,36 @@ function Show-EnhancementTool {
     #>
     [CmdletBinding()]
     param()
-    
+
     try {
         # Initialize color scheme
         Set-ColorScheme
-        
+
         # Create main form with dynamic sizing based on content
         $form = New-Object System.Windows.Forms.Form
-        $form.Text = 'Windows 11 Ultimate Configurator (Fixed)'
+        $form.Text = 'Windows 11 Ultimate Configurator'
         $form.BackColor = Get-SafeColor -ColorName 'Background' -DefaultColor ([System.Drawing.Color]::FromArgb(243, 243, 243))
         $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::Sizable
         $form.MaximizeBox = $true
         $form.Font = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Regular)
-        
+
         # Pre-calculate content dimensions for dynamic sizing
         $panelSpacing = 20
         $startX = 30
         $marginRight = 30
         $panelsPerRow = 4
-        $padding = 30  # Padding around all four sides
-        
+        $padding = 30
+
         # Calculate optimal window width based on content with explicit type conversion
-        $minPanelWidth = [int]300  # Minimum width per panel
+        $minPanelWidth = [int]300
         $optimalWidth = ([int]$minPanelWidth * [int]$panelsPerRow) + ([int]$panelSpacing * ([int]$panelsPerRow - 1)) + [int]$startX + [int]$marginRight + ([int]$padding * 2)
-        
+
         # Set initial size (will be adjusted after content is measured)
         $form.Size = New-Object System.Drawing.Size([int]$optimalWidth, [int]800)
         $minFormWidth = ([int]$minPanelWidth * 2) + [int]$startX + [int]$marginRight + ([int]$padding * 2)
         $form.MinimumSize = New-Object System.Drawing.Size([int]$minFormWidth, [int]600)
         $form.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
-        
+
         # Add main scrollable container for the entire form
         $mainScrollContainer = New-Object System.Windows.Forms.Panel
         $mainScrollContainer.Location = New-Object System.Drawing.Point(0, 0)
@@ -1241,7 +1261,7 @@ function Show-EnhancementTool {
         $mainScrollContainer.AutoScroll = $true
         $mainScrollContainer.BackColor = $form.BackColor
         $form.Controls.Add($mainScrollContainer)
-        
+
         # Header label with consistent padding
         $headerLabel = New-Object System.Windows.Forms.Label
         $headerLabel.Text = 'Windows 11 Ultimate Configurator'
@@ -1251,7 +1271,7 @@ function Show-EnhancementTool {
         $headerLabel.ForeColor = Get-SafeColor -ColorName 'Text' -DefaultColor ([System.Drawing.Color]::Black)
         $headerLabel.Font = New-Object System.Drawing.Font('Segoe UI', 18, [System.Drawing.FontStyle]::Bold)
         $mainScrollContainer.Controls.Add($headerLabel)
-        
+
         # Subtitle label with consistent padding
         $subtitleLabel = New-Object System.Windows.Forms.Label
         $subtitleLabel.Text = 'Professional system enhancement and Windows 11 requirements bypass - 51 total options organized by category'
@@ -1261,18 +1281,18 @@ function Show-EnhancementTool {
         $subtitleLabel.ForeColor = Get-SafeColor -ColorName 'TextSecondary' -DefaultColor ([System.Drawing.Color]::Gray)
         $subtitleLabel.Font = New-Object System.Drawing.Font('Segoe UI', 10, [System.Drawing.FontStyle]::Regular)
         $mainScrollContainer.Controls.Add($subtitleLabel)
-        
+
         # Initialize global arrays for checkboxes
         $Global:bypassCheckboxes = @()
         $Global:enhancementCheckboxes = @()
-        
+
         # Add some space between header and warning box with explicit type conversion
-        $warningTop = [int]$padding + [int]35 + [int]25 + [int]25  # padding + subtitle height + subtitle margin + extra space
-        
+        $warningTop = [int]$padding + [int]35 + [int]25 + [int]25
+
         # Add warning box with improved appearance and dynamic sizing
         $warningText = 'CAUTION: This utility modifies critical Windows settings and bypasses hardware requirements. Use only on test systems or if you understand the risks. Always backup your system before applying changes.'
         $warningFont = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Regular)
-        
+
         # Calculate required height for text with better fitting and explicit type conversion
         $tempGraphics = [System.Drawing.Graphics]::FromImage((New-Object System.Drawing.Bitmap(1, 1)))
         $formWidthInt = [int]$form.Width
@@ -1280,20 +1300,20 @@ function Show-EnhancementTool {
         $textSize = $tempGraphics.MeasureString($warningText, $warningFont, $measureWidth)
         $tempGraphics.Dispose()
         $textHeight = [int]([Math]::Ceiling([double]$textSize.Height))
-        $warningHeight = [Math]::Max([int]45, ($textHeight + [int]20))  # Better minimum height
-        
+        $warningHeight = [Math]::Max([int]45, ($textHeight + [int]20))
+
         $warningPanel = New-Object System.Windows.Forms.Panel
         $warningPanel.Location = New-Object System.Drawing.Point(([int]$startX + [int]$padding), [int]$warningTop)
         $formWidthForPanel = [int]$form.Width
         $panelWidth = [int]$formWidthForPanel - ([int]$startX + [int]$marginRight + ([int]$padding * 2))
         $warningPanel.Size = New-Object System.Drawing.Size([int]$panelWidth, [int]$warningHeight)
-        $warningPanel.BackColor = [System.Drawing.Color]::FromArgb(255, 249, 232)  # Softer yellow background
+        $warningPanel.BackColor = [System.Drawing.Color]::FromArgb(255, 249, 232)
         $warningPanel.BorderStyle = [System.Windows.Forms.BorderStyle]::None
-        
+
         # Add custom subtle border using PowerShell 5.1 compatible method
         $warningPanel.Add_Paint({
             param($sender, $e)
-            $borderColor = [System.Drawing.Color]::FromArgb(200, 180, 120)  # Subtle border
+            $borderColor = [System.Drawing.Color]::FromArgb(200, 180, 120)
             $borderPen = New-Object System.Drawing.Pen($borderColor, 1)
             $panelWidth = [int]$sender.Width
             $panelHeight = [int]$sender.Height
@@ -1301,7 +1321,7 @@ function Show-EnhancementTool {
             $e.Graphics.DrawRectangle($borderPen, $rect)
             $borderPen.Dispose()
         })
-        
+
         $warningLabel = New-Object System.Windows.Forms.Label
         $warningLabel.Text = $warningText
         $warningLabel.Location = New-Object System.Drawing.Point([int]15, [int]10)
@@ -1310,28 +1330,28 @@ function Show-EnhancementTool {
         $labelHeight = [int]$warningHeight - [int]20
         $warningLabel.Size = New-Object System.Drawing.Size([int]$labelWidth, [int]$labelHeight)
         $warningLabel.Font = $warningFont
-        $warningLabel.ForeColor = [System.Drawing.Color]::FromArgb(120, 80, 20)  # More subtle text color
+        $warningLabel.ForeColor = [System.Drawing.Color]::FromArgb(120, 80, 20)
         $warningLabel.BackColor = [System.Drawing.Color]::Transparent
         $warningPanel.Controls.Add($warningLabel)
-        
+
         $mainScrollContainer.Controls.Add($warningPanel)
-        
+
         # Move buttons under the caution box with explicit type conversion
-        $buttonsY = [int]$warningTop + [int]$warningHeight + [int]25  # Buttons positioned below warning box
-        
+        $buttonsY = [int]$warningTop + [int]$warningHeight + [int]25
+
         # Define responsive panel layout configuration (adjusted for buttons position)
         # Use the pre-calculated values from form initialization
-        $startY = [int]$buttonsY + [int]60  # Panels positioned below buttons
-        
+        $startY = [int]$buttonsY + [int]60
+
         # Calculate optimal panel sizes based on content and available space
         $formWidthInt = [int]$form.Width
         $availableWidth = [int]$formWidthInt - [int]$startX - [int]$marginRight - ([int]$padding * 2)
-        
+
         # Calculate panel width to use available space efficiently
         $spacingWidth = ([int]$panelsPerRow - 1) * [int]$panelSpacing
         $calculatedPanelWidth = [Math]::Floor(([int]$availableWidth - [int]$spacingWidth) / [int]$panelsPerRow)
         $panelWidth = [Math]::Max([int]$calculatedPanelWidth, [int]$minPanelWidth)
-        
+
         # Define all categories with their information (Developer section removed)
         $allCategories = @(
             @{ Name = 'Windows 11 Bypass'; Key = 'bypass'; Count = 7; Description = 'Skip hardware requirements' },
@@ -1343,67 +1363,67 @@ function Show-EnhancementTool {
             @{ Name = 'Network'; Key = 'network'; Count = 6; Description = 'Network & internet' },
             @{ Name = 'Cleanup'; Key = 'cleanup'; Count = 7; Description = 'Remove bloatware' }
         )
-        
+
         # Create panels in responsive grid layout with consistent padding
         $currentX = [int]$startX + [int]$padding
         $currentY = [int]$startY
         $currentPanel = 0
-        
+
         # First pass: Calculate the height needed for each panel and determine max height per row
         $panelHeights = @()
         $rowMaxHeights = @()
         $currentRowMax = 0
-        
+
         foreach ($categoryInfo in $allCategories) {
             $categoryKey = if ($categoryInfo.Key -eq 'bypass') { 'bypass' } else { $categoryInfo.Key }
             $optionCount = $Global:enhancementOptions[$categoryKey].Count
-            
+
             # Calculate height: header(34) + description(16) + options(20px each) + padding(15)
             $individualPanelHeight = [int]34 + [int]16 + ([int]$optionCount * [int]20) + [int]15
-            $individualPanelHeight = [Math]::Max([int]$individualPanelHeight, [int]120)  # Minimum height
+            $individualPanelHeight = [Math]::Max([int]$individualPanelHeight, [int]120)
             $panelHeights += $individualPanelHeight
-            
+
             # Track max height in current row
             $currentRowMax = [Math]::Max($currentRowMax, $individualPanelHeight)
-            
+
             # If we've completed a row (or it's the last panel), save the row height
             if (($panelHeights.Count % $panelsPerRow) -eq 0 -or $panelHeights.Count -eq $allCategories.Count) {
                 $rowMaxHeights += $currentRowMax
                 $currentRowMax = 0
             }
         }
-        
+
         # Second pass: Create panels using the row maximum heights
         $panelIndex = 0
         foreach ($categoryInfo in $allCategories) {
             # Determine which row this panel is in and use that row's max height
             $rowNumber = [Math]::Floor($panelIndex / $panelsPerRow)
             $uniformRowHeight = $rowMaxHeights[$rowNumber]
-            
+
             # Calculate position based on completed rows
             if ($currentPanel -gt 0 -and ($currentPanel % $panelsPerRow) -eq 0) {
                 $currentX = [int]$startX + [int]$padding
                 $currentY = [int]$startY
-                # Add up all previous row heights
+
                 for ($i = 0; $i -lt $rowNumber; $i++) {
                     $currentY += ([int]$rowMaxHeights[$i] + [int]$panelSpacing)
                 }
             }
-            
+
             # Create panel for this category using uniform row height
             $panelTitle = "$($categoryInfo.Name) ($($categoryInfo.Count) options)"
             $panelLocation = New-Object System.Drawing.Point([int]$currentX, [int]$currentY)
             $panelSize = New-Object System.Drawing.Size([int]$panelWidth, [int]$uniformRowHeight)
-            
+
             $categoryPanelInfo = New-ScrollablePanel -Title $panelTitle -Location $panelLocation -Size $panelSize
-            
+
             if ($null -ne $categoryPanelInfo) {
                 $mainScrollContainer.Controls.Add($categoryPanelInfo.MainPanel)
-                
+
                 # Add description label with better positioning
                 $descLabel = New-Object System.Windows.Forms.Label
                 $descLabel.Text = $categoryInfo.Description
-                $descLabel.Location = New-Object System.Drawing.Point([int]15, [int]34)  # Position just below title
+                $descLabel.Location = New-Object System.Drawing.Point([int]15, [int]34)
                 $panelWidthForDesc = [int]$panelWidth
                 $descWidth = [int]$panelWidthForDesc - [int]30
                 $descLabel.Size = New-Object System.Drawing.Size([int]$descWidth, [int]16)
@@ -1411,44 +1431,44 @@ function Show-EnhancementTool {
                 $descLabel.ForeColor = Get-SafeColor -ColorName 'TextSecondary' -DefaultColor ([System.Drawing.Color]::Gray)
                 $descLabel.Font = New-Object System.Drawing.Font('Segoe UI', 8, [System.Drawing.FontStyle]::Italic)
                 $categoryPanelInfo.MainPanel.Controls.Add($descLabel)
-                
+
                 # Create checkboxes for this category
                 $yPos = 5
                 $categoryOptions = if ($categoryInfo.Key -eq 'bypass') { $Global:enhancementOptions.bypass } else { $Global:enhancementOptions[$categoryInfo.Key] }
-                
+
                 if ($null -ne $categoryOptions) {
                     foreach ($option in $categoryOptions) {
                         if ($null -eq $option) { continue }
-                        
+
                         $checkbox = New-ModernCheckBox -Text $option.Name -Location (New-Object System.Drawing.Point([int]5, [int]$yPos)) -Description $option.Description
                         if ($null -ne $checkbox) {
                             # Adjust checkbox size for smaller panels
                             $checkboxWidth = [int]$panelWidth - [int]50
                             $checkbox.Size = New-Object System.Drawing.Size([int]$checkboxWidth, [int]18)
                             $checkbox.Font = New-Object System.Drawing.Font('Segoe UI', 8, [System.Drawing.FontStyle]::Regular)
-                            
+
                             $categoryPanelInfo.ScrollPanel.Controls.Add($checkbox)
-                            
+
                             # Add to appropriate global array
                             if ($categoryInfo.Key -eq 'bypass') {
                                 $Global:bypassCheckboxes += @{ Control = $checkbox; Option = $option }
                             } else {
                                 $Global:enhancementCheckboxes += @{ Control = $checkbox; Option = $option }
                             }
-                            
+
                             $yPos += [int]20
                         }
                     }
                 }
             }
-            
+
             # Move to next position
             $panelWidthInt = [int]$panelWidth
             $currentX += ([int]$panelWidthInt + [int]$panelSpacing)
             $currentPanel++
             $panelIndex++
         }
-        
+
         # Position buttons under caution box with consistent padding
         $buttonStartX = [int]$startX + [int]$padding
         $formWidthInt = [int]$form.Width
@@ -1457,7 +1477,7 @@ function Show-EnhancementTool {
         $buttonSpacing = [int]15
         $buttonHeight = [int]35
         $buttonFont = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Regular)
-        
+
         # All buttons in one array for fluid layout
         $allButtons = @(
             @{ Text = 'Bypass'; MinWidth = 80; Category = 'bypass'; Type = 'category' },
@@ -1474,7 +1494,7 @@ function Show-EnhancementTool {
             @{ Text = 'Generate'; MinWidth = 90; Type = 'generate' },
             @{ Text = 'Exit'; MinWidth = 70; Type = 'exit' }
         )
-        
+
         # Calculate optimal button widths
         foreach ($btn in $allButtons) {
             $textWidth = Get-TextWidth -Text $btn.Text -Font $buttonFont
@@ -1482,13 +1502,13 @@ function Show-EnhancementTool {
             $minWidthInt = [int]$btn.MinWidth
             $btn.OptimalWidth = [Math]::Max($textWidthInt, $minWidthInt)
         }
-        
+
         # Create all buttons in one fluid row under caution box
         $currentX = $buttonStartX
-        
+
         foreach ($buttonInfo in $allButtons) {
-            $buttonColor = 'Primary'  # Default color
-            
+            $buttonColor = 'Primary'
+
             # Set appropriate colors
             switch ($buttonInfo.Type) {
                 'clearall' { $buttonColor = 'Warning' }
@@ -1496,9 +1516,9 @@ function Show-EnhancementTool {
                 'generate' { $buttonColor = 'Success' }
                 'exit' { $buttonColor = 'TextSecondary' }
             }
-            
+
             $button = New-ModernButton -Text $buttonInfo.Text -Location (New-Object System.Drawing.Point([int]$currentX, [int]$buttonsY)) -Size (New-Object System.Drawing.Size([int]$buttonInfo.OptimalWidth, [int]$buttonHeight)) -BackColor $buttonColor
-            
+
             if ($null -ne $button) {
                 # Add appropriate event handler based on button type
                 switch ($buttonInfo.Type) {
@@ -1508,8 +1528,8 @@ function Show-EnhancementTool {
                             $selectedCategory = $this.Tag
                             if ($selectedCategory -eq 'bypass') {
                                 foreach ($item in $Global:bypassCheckboxes) {
-                                    if ($null -ne $item.Control) { 
-                                        $item.Control.Checked = $true 
+                                    if ($null -ne $item.Control) {
+                                        $item.Control.Checked = $true
                                     }
                                 }
                             } else {
@@ -1525,14 +1545,14 @@ function Show-EnhancementTool {
                         $button.Add_Click({
                             # Select all bypass checkboxes
                             foreach ($item in $Global:bypassCheckboxes) {
-                                if ($null -ne $item.Control) { 
-                                    $item.Control.Checked = $true 
+                                if ($null -ne $item.Control) {
+                                    $item.Control.Checked = $true
                                 }
                             }
                             # Select all enhancement checkboxes
                             foreach ($item in $Global:enhancementCheckboxes) {
-                                if ($null -ne $item.Control) { 
-                                    $item.Control.Checked = $true 
+                                if ($null -ne $item.Control) {
+                                    $item.Control.Checked = $true
                                 }
                             }
                         })
@@ -1541,14 +1561,14 @@ function Show-EnhancementTool {
                         $button.Add_Click({
                             # Clear all bypass checkboxes
                             foreach ($item in $Global:bypassCheckboxes) {
-                                if ($null -ne $item.Control) { 
-                                    $item.Control.Checked = $false 
+                                if ($null -ne $item.Control) {
+                                    $item.Control.Checked = $false
                                 }
                             }
                             # Clear all enhancement checkboxes
                             foreach ($item in $Global:enhancementCheckboxes) {
-                                if ($null -ne $item.Control) { 
-                                    $item.Control.Checked = $false 
+                                if ($null -ne $item.Control) {
+                                    $item.Control.Checked = $false
                                 }
                             }
                         })
@@ -1557,22 +1577,20 @@ function Show-EnhancementTool {
                         $button.Add_Click({
                             try {
                                 $selectedOptions = & $collectSelectedOptions
-                                
+
                                 if ($selectedOptions.Count -eq 0) {
                                     [System.Windows.Forms.MessageBox]::Show('Please select at least one option to apply.', 'No Options Selected', [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
                                     return
                                 }
-                                
+
                                 # Confirm before applying changes
                                 $result = [System.Windows.Forms.MessageBox]::Show('This will modify your current Windows system with the selected options.' + [Environment]::NewLine + [Environment]::NewLine + 'Are you sure you want to continue?', 'Confirm System Changes', [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
                                 if ($result -eq [System.Windows.Forms.DialogResult]::No) {
                                     return
                                 }
-                                
-                                # Apply enhancements
+
                                 $results = Apply-Enhancements -SelectedOptions $selectedOptions
-                                
-                                # Show results
+
                                 if ($null -ne $results -and $results.Count -gt 0) {
                                     $resultText = $results -join [Environment]::NewLine
                                     [System.Windows.Forms.MessageBox]::Show($resultText, 'System Modification Results', [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
@@ -1586,24 +1604,24 @@ function Show-EnhancementTool {
                         $button.Add_Click({
                             try {
                                 $selectedOptions = & $collectSelectedOptions
-                                
+
                                 if ($selectedOptions.Count -eq 0) {
                                     [System.Windows.Forms.MessageBox]::Show('Please select at least one option to generate the unattended file.', 'No Options Selected', [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
                                     return
                                 }
-                                
+
                                 # Generate unattended install file
                                 $result = Generate-UnattendedFile -SelectedOptions $selectedOptions
-                                
+
                                 if ($result.Success) {
-                                    $message = "$($result.Message)" + [Environment]::NewLine + [Environment]::NewLine + 
-                                               "File saved as: $($result.FileName)" + [Environment]::NewLine + 
-                                               "Location: $($result.FilePath)" + [Environment]::NewLine + [Environment]::NewLine + 
-                                               "To use this file:" + [Environment]::NewLine + 
-                                               "1. Copy 'autounattend.xml' to the root of your Windows 11 ISO or USB drive" + [Environment]::NewLine + 
+                                    $message = "$($result.Message)" + [Environment]::NewLine + [Environment]::NewLine +
+                                               "File saved as: $($result.FileName)" + [Environment]::NewLine +
+                                               "Location: $($result.FilePath)" + [Environment]::NewLine + [Environment]::NewLine +
+                                               "To use this file:" + [Environment]::NewLine +
+                                               "1. Copy 'autounattend.xml' to the root of your Windows 11 ISO or USB drive" + [Environment]::NewLine +
                                                "2. Windows will automatically detect and use this file during installation"
                                     [System.Windows.Forms.MessageBox]::Show($message, 'Unattended File Generated', [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-                                    
+
                                     # Ask if user wants to open the file location
                                     $openResult = [System.Windows.Forms.MessageBox]::Show('Would you like to open the file location?', 'Open File Location', [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
                                     if ($openResult -eq [System.Windows.Forms.DialogResult]::Yes) {
@@ -1621,20 +1639,20 @@ function Show-EnhancementTool {
                         $button.Add_Click({ $form.Close() })
                     }
                 }
-                
+
                 $mainScrollContainer.Controls.Add($button)
             }
-            
+
             $optimalWidthInt = [int]$buttonInfo.OptimalWidth
             $currentX += ([int]$optimalWidthInt + [int]$buttonSpacing)
         }
-        
-        
-        
+
+
+
         # Helper function to collect selected options
         $collectSelectedOptions = {
             $selectedOptions = @{}
-            
+
             # Collect selected bypass options
             $bypassSelected = @()
             foreach ($item in $Global:bypassCheckboxes) {
@@ -1645,7 +1663,7 @@ function Show-EnhancementTool {
             if ($bypassSelected.Count -gt 0) {
                 $selectedOptions['bypass'] = $bypassSelected
             }
-            
+
             # Collect selected enhancement options by category
             $categories = @('privacy', 'security', 'performance', 'appearance', 'gaming', 'network', 'cleanup')
             foreach ($category in $categories) {
@@ -1659,28 +1677,28 @@ function Show-EnhancementTool {
                     $selectedOptions[$category] = $categorySelected
                 }
             }
-            
+
             return $selectedOptions
         }
-        
+
         # Calculate the total content height and position status bar below panels
         $totalRowsHeight = [int]0
         foreach ($rowHeight in $rowMaxHeights) {
             $totalRowsHeight += ([int]$rowHeight + [int]$panelSpacing)
         }
-        $maxPanelY = [int]$startY + [int]$totalRowsHeight - [int]$panelSpacing  # Remove extra spacing from last row
-        $statusY = [int]$maxPanelY + [int]20  # Position status bar below the last row of panels
-        
+        $maxPanelY = [int]$startY + [int]$totalRowsHeight - [int]$panelSpacing
+        $statusY = [int]$maxPanelY + [int]20
+
         # Calculate optimal window height based on actual content
-        $totalContentHeight = [int]$statusY + [int]50 + ([int]$padding * 2)  # Status bar + padding + extra space
-        
-        # Adjust form size to fit content with padding
-        $optimalHeight = [Math]::Max([int]$totalContentHeight, [int]600)  # Minimum height of 600
+        $totalContentHeight = [int]$statusY + [int]50 + ([int]$padding * 2)
+
+        # Adjust form size to fit content with padding (min height 600)
+        $optimalHeight = [Math]::Max([int]$totalContentHeight, [int]600)
         $form.Size = New-Object System.Drawing.Size([int]$form.Width, [int]$optimalHeight)
-        
+
         # Adjust main scroll container to fit the new form size
         $mainScrollContainer.Size = New-Object System.Drawing.Size([int]$form.ClientSize.Width, [int]$form.ClientSize.Height)
-        
+
         # Status bar with consistent padding
         $statusLabel = New-Object System.Windows.Forms.Label
         $statusLabel.Text = 'Ready - Select options from the panels above, then: Apply (modifies current PC) or Generate (creates install file)'
@@ -1690,24 +1708,21 @@ function Show-EnhancementTool {
         $statusLabel.ForeColor = Get-SafeColor -ColorName 'TextSecondary' -DefaultColor ([System.Drawing.Color]::Gray)
         $statusLabel.Font = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Regular)
         $mainScrollContainer.Controls.Add($statusLabel)
-        
+
         # Calculate the total content height for scroll container
         $totalScrollHeight = [int]$statusY + [int]50
-        $totalContentHeight = [Math]::Max([int]$totalScrollHeight, [int]1000)  # Ensure minimum scrollable height
-        
+        $totalContentHeight = [Math]::Max([int]$totalScrollHeight, [int]1000)
+
         # Add resize event handler for responsive layout with scrolling support
         $form.Add_Resize({
             try {
-                # Update main scroll container size
                 $mainScrollContainer.Size = New-Object System.Drawing.Size([int]$this.ClientSize.Width, [int]$this.ClientSize.Height)
-                
-                # Update warning box size with consistent padding
+
                 foreach ($control in $mainScrollContainer.Controls) {
                     if ($control -is [System.Windows.Forms.Panel] -and $control.BackColor -eq [System.Drawing.Color]::FromArgb(255, 249, 232)) {
                         $thisWidthInt = [int]$this.Width
                         $newControlWidth = [int]$thisWidthInt - ([int]$startX + [int]$marginRight + ([int]$padding * 2))
                         $control.Size = New-Object System.Drawing.Size([int]$newControlWidth, [int]$warningHeight)
-                        # Update warning label width
                         foreach ($subControl in $control.Controls) {
                             if ($subControl -is [System.Windows.Forms.Label] -and $subControl.Location.X -eq 15) {
                                 $controlWidthInt = [int]$control.Width
@@ -1719,40 +1734,38 @@ function Show-EnhancementTool {
                         break
                     }
                 }
-                
-                # Recalculate panel width on resize - panel heights remain fixed to content
+
+                <#
+                Recalculate panel width on resize - panel heights remain fixed to content
+                Only check for main panels not message boxes or buttons
+                #>
                 $thisWidthInt = [int]$this.Width
                 $newAvailableWidth = [int]$thisWidthInt - [int]$startX - [int]$marginRight - ([int]$padding * 2)
                 $newSpacingWidth = ([int]$panelsPerRow - 1) * [int]$panelSpacing
                 $calculatedWidth = [Math]::Floor(([int]$newAvailableWidth - [int]$newSpacingWidth) / [int]$panelsPerRow)
                 $newPanelWidth = [Math]::Max([int]$calculatedWidth, [int]$minPanelWidth)
-                
-                # Update existing panels if width changed significantly
+
                 if ([Math]::Abs([int]$newPanelWidth - [int]$panelWidth) -gt [int]20) {
                     $panelWidth = $newPanelWidth
-                    
-                    # Only update panel widths - heights and positions remain the same
+
                     foreach ($control in $mainScrollContainer.Controls) {
-                        # Check for main panels (not warning box or buttons)
                         $startYCheck = [int]$startY - [int]50
                         if ($control -is [System.Windows.Forms.Panel] -and $control.Location.Y -gt $startYCheck) {
-                            # Update only the width, keep existing height and position
                             $existingHeight = [int]$control.Size.Height
                             $control.Size = New-Object System.Drawing.Size([int]$newPanelWidth, [int]$existingHeight)
                         }
                     }
                 }
-                
+
             } catch {
-                # Silently handle resize errors to avoid disrupting user experience
                 Write-Verbose "Resize error: $_"
             }
         })
-        
+
         # Show the form
         Write-Host "Launching GUI..." -ForegroundColor Green
         [void]$form.ShowDialog()
-        
+
     } catch {
         Write-Error "Failed to create main form: $_"
         [System.Windows.Forms.MessageBox]::Show("Failed to initialize the application: $_", 'Initialization Error', [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
