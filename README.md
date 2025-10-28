@@ -11,6 +11,13 @@
 
 Look, Windows 11 has some nice features, but Microsoft's hardware requirements are pretty ridiculous. This tool let's you have control over your own computer. Whether you're running older hardware that works just fine *but Microsoft says it doesn't*, or you just want Windows to stop spying on you and actually run fast, this tool has what you need.
 
+> [!IMPORTANT]
+> **THIS IS STILL A WORK IN PROGRESS**
+> - The `autounattended.xml` file should work just fine.
+> - It has been tested on a brand new install using a USB created with Rufus and it bypassed all the requirements just fine.
+> - Please let me know if this works for you or if you find any bugs so I can iron them out as I work the next version.
+
+
 > [!CAUTION]
 > - **This tool modifies Windows registry settings and system configuration**.
 > - While all changes use standard Windows mechanisms, you should understand what each option does before applying it.
