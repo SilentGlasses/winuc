@@ -117,8 +117,12 @@ You can either apply changes directly to your current system (using the **Apply*
 
 ### Running the Tool
 
-1. Launch PowerShell with **Run as administrator**
-2. Run:
+- Launch PowerShell with **Run as administrator**
+- Allow code execution:
+```powershell
+Set-ExecutionPolicy Unrestricted -Scope Process -Force
+```
+- Run:
 ```powershell
 irm https://raw.githubusercontent.com/SilentGlasses/winuc/main/winuc.ps1 | iex
 ```
